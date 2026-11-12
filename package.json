@@ -12,7 +12,7 @@
     "start:vinext": "vite preview",
     "deploy:vinext": "vinext-cloudflare deploy --warm-cache",
     "deploy:response-store": "cf deploy --prebuilt --mode production --worker qwruweb-response-store",
-    "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts"
+    "typegen": "wrangler types"
   },
   "dependencies": {
     "@cloudflare/workers-response-store": "^1.1.5",

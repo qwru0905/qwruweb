@@ -1,46 +1,43 @@
-import { bindings, defineConfig } from "cf/config";
+import { bindings, defineConfig, defineWorker } from "cf/config";
+import { createWorkersResponseStoreServiceBindingConfig } from "@vinext/cloudflare/cache/config";
 
-/**
- * Secret-like files were detected but not read or migrated: .dev.vars. Only `secrets.required` entries are migrated.
- * @see https://developers.cloudflare.com/workers/configuration/secrets/
- */
+const responseStore = await createWorkersResponseStoreServiceBindingConfig({
+  worker: {
+    name: "qwruweb-response-store",
+    compatibilityDate: "2026-11-09",
+    compatibilityFlags: ["nodejs_compat"],
+  },
+  bucket: "qwruweb-response-store-cache-bodies",
+});
+
+export const responseStoreServiceBinding = responseStore.serviceBindingWorker;
 
 export default defineConfig({
-	worker: {
-		name: "qwruweb",
-		compatibilityDate: "2026-11-09",
-		compatibilityFlags: [
-			"global_fetch_strictly_public",
-		],
-		entrypoint: "./worker/index.ts",
-		observability: {
-			enabled: true,
-		},
-		assets: {
-			notFoundHandling: "none",
-		},
-		env: {
-			DB: bindings.d1({
-				name: "qwruwebdb",
-				id: "04f588cd-a184-4e0e-861c-add0a241de47",
-				dev: {
-					remote: false,
-				},
-			}),
-			SEEN: bindings.kv({
-				id: "7c9fcfbd45784dd0ad88959bd73fda0c",
-				dev: {
-					remote: false,
-				},
-			}),
-			NEXT_INC_CACHE_R2_BUCKET: bindings.r2({
-				name: "qwruweb-opennext-cache",
-			}),
-			WORKER_SELF_REFERENCE: bindings.worker({
-				worker: "qwruweb",
-			}),
-			IMAGES: bindings.images({}),
-			ASSETS: bindings.assets(),
-		},
-	},
+  worker: defineWorker({
+    ...responseStore.applicationWorker,
+    name: "qwruweb",
+    entrypoint: "vinext/server/fetch-handler",
+    compatibilityDate: "2026-11-09",
+    compatibilityFlags: ["nodejs_compat"],
+    assets: {
+      htmlHandling: "none",
+      notFoundHandling: "none",
+      runWorkerFirst: ["/*", "!/_next/static/*", "!/*/_next/static/*"],
+    },
+    env: {
+      ...responseStore.applicationWorker.env,
+      ASSETS: bindings.assets(),
+      IMAGES: bindings.images(),
+      DB: bindings.d1({
+        name: "qwruwebdb",
+        id: "04f588cd-a184-4e0e-861c-add0a241de47",
+        dev: { remote: false },
+      }),
+      SEEN: bindings.kv({
+        id: "7c9fcfbd45784dd0ad88959bd73fda0c",
+        dev: { remote: false },
+      }),
+      WEBHOOK_SECRET: bindings.secret(),
+    },
+  }),
 });
